@@ -10,7 +10,6 @@ const port = process.env.PORT || 5000;
 const corsConfig = {
   origin: ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   optionSuccessStatus: 200
 }
 
@@ -46,15 +45,34 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    //  await client.connect();
+
     // Send a ping to confirm a successful connection
 
     const userCollection = client.db('BiteDelight').collection('User');
     const foodCollection = client.db('BiteDelight').collection('Foods');
+    const ratingCollection = client.db('BiteDelight').collection('Rating');
 
-    app.get('/', (req, res) => {
-      res.send('Server is Running');
+    app.get('/', async(req, res) => {
+     res.send('Server is Running')
     })
+
+    app.get('/ratings',async(req,res)=>{
+      const ratings = await ratingCollection.find({}).toArray();
+      res.send(ratings)
+    })
+
+    app.get('/all-users',async(req,res)=>{
+      const users = await userCollection.find().toArray();
+      res.send(users)
+    })
+
+    app.get('/all-food',async(req,res)=>{
+      const ratings = await foodCollection.find().toArray();
+      res.send(ratings)
+    })
+
+  
 
     app.post('/jwt', async (req, res) => {
       const user = req.body;
@@ -91,6 +109,7 @@ async function run() {
       const result = await userCollection.updateOne(query,updateDocs,options)
       res.send(result)
     })
+
 
 
 
