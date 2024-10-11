@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, Timestamp } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const port = process.env.PORT || 5000;
@@ -49,30 +49,50 @@ async function run() {
     // await client.connect();
     // Send a ping to confirm a successful connection
 
-
+    const userCollection = client.db('BiteDelight').collection('User');
+    const foodCollection = client.db('BiteDelight').collection('Foods');
 
     app.get('/', (req, res) => {
       res.send('Server is Running');
     })
 
-    app.post('/jwt',async(req,res)=>{
+    app.post('/jwt', async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user,process.env.SECRET_KEY,{expiresIn: '7d'})
-      res.cookie('token',token,{
+      const token = jwt.sign(user, process.env.SECRET_KEY, { expiresIn: '7d' })
+      res.cookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
-      }).send({message: 'Cookie set Done'})
+      }).send({ message: 'Cookie set Done' })
     })
 
-    app.get('/remove_cookie',async(req,res)=>{
-      res.clearCookie('token',{
+    app.get('/remove_cookie', async (req, res) => {
+      res.clearCookie('token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' :'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
         maxAge: 0
-      }).send({message: 'Removed Cookie'})
+      }).send({ message: 'Removed Cookie' })
     })
+
+    app.put('/user', async (req, res) => {
+      const user = req.body;
+      console.log(user)
+      const isExist = await userCollection.findOne({ email: user?.email })
+      if (isExist) return res.send(isExist)
+      const options = { upsert: true }
+      const query = { email: user.email }
+      const updateDocs = {
+        $set: {
+          ...user,
+          Timestamp: Date.now()
+        }
+      }
+      const result = await userCollection.updateOne(query,updateDocs,options)
+      res.send(result)
+    })
+
+
 
 
 
