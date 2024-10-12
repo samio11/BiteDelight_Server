@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require('dotenv').config();
-const { MongoClient, ServerApiVersion, Timestamp } = require('mongodb');
+const { MongoClient, ServerApiVersion, Timestamp, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const port = process.env.PORT || 5000;
@@ -52,6 +52,7 @@ async function run() {
     const userCollection = client.db('BiteDelight').collection('User');
     const foodCollection = client.db('BiteDelight').collection('Foods');
     const ratingCollection = client.db('BiteDelight').collection('Rating');
+    const cartCollection = client.db('BiteDelight').collection('Cart');
 
     app.get('/', async(req, res) => {
      res.send('Server is Running')
@@ -95,7 +96,6 @@ async function run() {
 
     app.put('/user', async (req, res) => {
       const user = req.body;
-      console.log(user)
       const isExist = await userCollection.findOne({ email: user?.email })
       if (isExist) return res.send(isExist)
       const options = { upsert: true }
@@ -110,10 +110,25 @@ async function run() {
       res.send(result)
     })
 
+    app.post('/cart',async(req,res)=>{
+      const cart = req.body;
+      const result = await cartCollection.insertOne(cart);
+      res.send(result)
+    })
 
+    app.get('/cartInfo/:email',async(req,res)=>{
+      const email = req.params.email;
+      const cart = await cartCollection.find({ email }).toArray();
+      res.send(cart)
+    })
 
-
-
+    app.delete('/cartData/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const result = await cartCollection.deleteOne({ _id: id }); // No ObjectId conversion
+      res.send(result);
+    });
+    
 
 
     await client.db("admin").command({ ping: 1 });
