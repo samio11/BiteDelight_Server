@@ -17,6 +17,8 @@ app.use(cors(corsConfig));
 app.use(express.json());
 app.use(cookieParser());
 
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
+
 //Middleware
 const verifyToken = (req, res, next) => {
   const token = req.cookies.token;
@@ -53,27 +55,54 @@ async function run() {
     const foodCollection = client.db('BiteDelight').collection('Foods');
     const ratingCollection = client.db('BiteDelight').collection('Rating');
     const cartCollection = client.db('BiteDelight').collection('Cart');
+    const paymentCollection = client.db('BiteDelight').collection('Payment');
 
-    app.get('/', async(req, res) => {
-     res.send('Server is Running')
+    app.get('/', async (req, res) => {
+      res.send('Server is Running')
     })
 
-    app.get('/ratings',async(req,res)=>{
+    app.get('/ratings', async (req, res) => {
       const ratings = await ratingCollection.find({}).toArray();
       res.send(ratings)
     })
 
-    app.get('/all-users',async(req,res)=>{
+    app.get('/all-users', async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users)
     })
 
-    app.get('/all-food',async(req,res)=>{
+    app.get('/all-food', async (req, res) => {
       const ratings = await foodCollection.find().toArray();
       res.send(ratings)
     })
 
-  
+    //Stripe
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price*100);
+
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+       payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    });
+
+    app.post('/payments',async(req,res)=>{
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+      const query = {_id:{$in: payment.cartId.map(x =>x)}}
+      const deleteResult = await cartCollection.deleteMany(query);
+      res.send({paymentResult,deleteResult})
+    })
+
+
 
     app.post('/jwt', async (req, res) => {
       const user = req.body;
@@ -106,17 +135,17 @@ async function run() {
           Timestamp: Date.now()
         }
       }
-      const result = await userCollection.updateOne(query,updateDocs,options)
+      const result = await userCollection.updateOne(query, updateDocs, options)
       res.send(result)
     })
 
-    app.post('/cart',async(req,res)=>{
+    app.post('/cart', async (req, res) => {
       const cart = req.body;
       const result = await cartCollection.insertOne(cart);
       res.send(result)
     })
 
-    app.get('/cartInfo/:email',async(req,res)=>{
+    app.get('/cartInfo/:email', async (req, res) => {
       const email = req.params.email;
       const cart = await cartCollection.find({ email }).toArray();
       res.send(cart)
@@ -128,7 +157,7 @@ async function run() {
       const result = await cartCollection.deleteOne({ _id: id }); // No ObjectId conversion
       res.send(result);
     });
-    
+
 
 
     await client.db("admin").command({ ping: 1 });
